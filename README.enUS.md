@@ -13,9 +13,6 @@
   English | <a href="README.md">简体中文</a>
 </p>
 
-<p align="center">
-  English | <a href="README.md">简体中文</a>
-</p>
 
 ## 💡 Why MulTab?
 
