@@ -111,3 +111,5 @@ iOSInjectionProject/
 PROJECT_RECONSTRUCTION.md
 BUILD_AND_RUN.md
 release/
+# Allow the release DMG to be tracked
+!release/MulTab.dmg

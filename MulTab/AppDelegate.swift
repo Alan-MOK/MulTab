@@ -38,6 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         registerHotkeys()
         setupLocalMonitor()
         observeHotkeyChanges()
+        observeMenuBarIconChanges()
+        
+        // 启动时显示偏好设置窗口
+        showPreferences()
     }
     
     func applicationWillTerminate(_ notification: Notification) {
@@ -48,13 +52,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    /// 用户再次双击应用时调用（应用已在运行）
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showPreferences()
+        return true
+    }
+    
     // MARK: - Setup
     private func setupApp() {
         // 隐藏 Dock 图标
         NSApp.setActivationPolicy(.accessory)
         
-        // 设置状态栏
+        // 始终创建状态栏图标，通过 isVisible 控制显隐
         setupStatusBar()
+        statusItem.isVisible = !preferencesManager.hideMenuBarIcon
     }
     
     private func setupStatusBar() {
@@ -92,6 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(hotkeyMenuItem)
         
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Preferences...", action: #selector(showPreferences), keyEquivalent: ","))
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "About MulTab", action: #selector(showAbout), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q"))
@@ -100,6 +113,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.delegate = self
         
         statusItem.menu = menu
+    }
+    
+    private func updateStatusItemVisibility() {
+        // 确保 statusItem 存在
+        if statusItem == nil {
+            setupStatusBar()
+        }
+        statusItem.isVisible = !preferencesManager.hideMenuBarIcon
     }
     
     @objc private func testWindowDetection() {
@@ -384,12 +405,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = "Command+Tab Requires Additional Permission"
         alert.informativeText = "Command+Tab mode requires accessibility permission to intercept system hotkeys. MulTab has switched to Option+Tab mode.\n\nTo use Command+Tab, please grant accessibility permission and restart MulTab."
         alert.alertStyle = .informational
-        // alert.addButton(withTitle: "Open Settings")
-        alert.addButton(withTitle: "Use Option+Tab")
-        
-        if alert.runModal() == .alertFirstButtonReturn {
-            permissionManager.openSystemSettings(for: .accessibility)
-        }
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
     
     // MARK: - Menu Actions
@@ -467,6 +484,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             .store(in: &cancellables)
+    }
+    
+    private func observeMenuBarIconChanges() {
+        // 直接监听 @Published 属性，比手动 PassthroughSubject 更可靠
+        preferencesManager.$hideMenuBarIcon
+            .dropFirst() // 跳过初始值
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateStatusItemVisibility()
+            }
+            .store(in: &cancellables)
+    }
+    
+    @objc private func showPreferences() {
+        PreferencesWindowController.shared.showWindow()
     }
     
     @objc private func quitApp() {

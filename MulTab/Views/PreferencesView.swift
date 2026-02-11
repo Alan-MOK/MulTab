@@ -72,13 +72,28 @@ struct PreferencesView: View {
                 }
             }
             
+            Divider()
+            
+            // 菜单栏图标设置
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Menu Bar")
+                    .font(.headline)
+                
+                Toggle("Hide menu bar icon", isOn: $preferencesManager.hideMenuBarIcon)
+                    .toggleStyle(.checkbox)
+                
+                Text("When hidden, you can still access MulTab through its hotkey.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
             Spacer()
             
             // 底部说明
             HStack {
                 Image(systemName: "info.circle")
                     .foregroundColor(.secondary)
-                Text("Changes take effect immediately.")
+                Text("Version 2.11.0")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
@@ -91,7 +106,7 @@ struct PreferencesView: View {
             }
         }
         .padding(20)
-        .frame(width: 400, height: 320)
+        .frame(width: 400, height: 420)
     }
 }
 
@@ -101,7 +116,7 @@ final class PreferencesWindowController: NSWindowController {
     
     private init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 320),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 420),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false

@@ -48,6 +48,7 @@ final class PreferencesManager: ObservableObject {
     // MARK: - Keys
     private enum Keys {
         static let hotkeyType = "hotkeyType"
+        static let hideMenuBarIcon = "hideMenuBarIcon"
     }
     
     // MARK: - Published Properties
@@ -58,8 +59,16 @@ final class PreferencesManager: ObservableObject {
         }
     }
     
+    @Published var hideMenuBarIcon: Bool {
+        didSet {
+            UserDefaults.standard.set(hideMenuBarIcon, forKey: Keys.hideMenuBarIcon)
+            hideMenuBarIconDidChange.send(hideMenuBarIcon)
+        }
+    }
+    
     // MARK: - Publishers
     let hotkeyTypeDidChange = PassthroughSubject<HotkeyType, Never>()
+    let hideMenuBarIconDidChange = PassthroughSubject<Bool, Never>()
     
     // MARK: - Initialization
     private init() {
@@ -70,5 +79,8 @@ final class PreferencesManager: ObservableObject {
         } else {
             self.hotkeyType = .optionTab
         }
+        
+        // 加载菜单栏图标隐藏设置，默认为 false（显示图标）
+        self.hideMenuBarIcon = UserDefaults.standard.bool(forKey: Keys.hideMenuBarIcon)
     }
 }
