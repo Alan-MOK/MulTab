@@ -87,6 +87,92 @@ final class WindowManager: WindowManagerProtocol {
         }
     }
     
+    // MARK: - AX Window Title Helpers
+    
+    /// 通过 AXUIElement 获取指定 PID 的所有窗口标题和位置
+    private struct AXWindowInfo {
+        let title: String
+        let position: CGPoint
+        let size: CGSize
+    }
+    
+    private func getAXWindowInfos(forPID pid: pid_t) -> [AXWindowInfo] {
+        let app = AXUIElementCreateApplication(pid)
+        var windowsRef: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windowsRef)
+        guard result == .success, let axWindows = windowsRef as? [AXUIElement] else {
+            return []
+        }
+        
+        var infos: [AXWindowInfo] = []
+        for axWindow in axWindows {
+            var titleRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(axWindow, kAXTitleAttribute as CFString, &titleRef)
+            let title = titleRef as? String ?? ""
+            
+            var positionRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(axWindow, kAXPositionAttribute as CFString, &positionRef)
+            var position = CGPoint.zero
+            if let posVal = positionRef {
+                AXValueGetValue(posVal as! AXValue, .cgPoint, &position)
+            }
+            
+            var sizeRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(axWindow, kAXSizeAttribute as CFString, &sizeRef)
+            var size = CGSize.zero
+            if let sizeVal = sizeRef {
+                AXValueGetValue(sizeVal as! AXValue, .cgSize, &size)
+            }
+            
+            infos.append(AXWindowInfo(title: title, position: position, size: size))
+        }
+        return infos
+    }
+    
+    /// 用 AXUIElement 获取的标题补充窗口信息
+    private func enrichWindowTitles(_ windows: inout [WindowInfo]) {
+        // 按 PID 分组
+        let pidGroups = Dictionary(grouping: windows, by: { $0.ownerPID })
+        
+        for (pid, pidWindows) in pidGroups {
+            let axInfos = getAXWindowInfos(forPID: pid)
+            guard !axInfos.isEmpty else { continue }
+            
+            for windowInfo in pidWindows {
+                // 如果已经有标题且不等于应用名，跳过
+                if !windowInfo.title.isEmpty && windowInfo.title != windowInfo.appName {
+                    continue
+                }
+                
+                // 通过位置和大小匹配 AX 窗口
+                let tolerance: CGFloat = 10
+                if let matchedAX = axInfos.first(where: { ax in
+                    abs(ax.position.x - windowInfo.bounds.origin.x) <= tolerance &&
+                    abs(ax.position.y - windowInfo.bounds.origin.y) <= tolerance &&
+                    abs(ax.size.width - windowInfo.bounds.width) <= tolerance &&
+                    abs(ax.size.height - windowInfo.bounds.height) <= tolerance
+                }), !matchedAX.title.isEmpty {
+                    // 找到匹配的窗口并用 AX 标题更新
+                    if let idx = windows.firstIndex(where: { $0.id == windowInfo.id }) {
+                        let w = windows[idx]
+                        windows[idx] = WindowInfo(
+                            id: w.id,
+                            ownerPID: w.ownerPID,
+                            bundleID: w.bundleID,
+                            appName: w.appName,
+                            title: matchedAX.title,
+                            bounds: w.bounds,
+                            layer: w.layer,
+                            isOnScreen: w.isOnScreen,
+                            isMinimized: w.isMinimized
+                        )
+                        print("🏷️ AX title enriched: '\(matchedAX.title)' for window \(w.id) (\(w.appName))")
+                    }
+                }
+            }
+        }
+    }
+    
     // MARK: - Window Operations
     
     /// 获取当前应用的所有窗口
@@ -125,6 +211,9 @@ final class WindowManager: WindowManagerProtocol {
         }
         
         print("✅ Parsed windows: \(windows.count)")
+        
+        // 通过 AXUIElement 补充窗口标题
+        enrichWindowTitles(&windows)
         
         // 根据访问历史记录排序窗口
         // 有历史记录的窗口按时间倒序排列（最近访问的在前）
@@ -178,9 +267,12 @@ final class WindowManager: WindowManagerProtocol {
             print("  [\(index)] PID:\(ownerPID) Owner:\(ownerName) Title:\(title) Layer:\(layer)")
         }
         
-        let windows = windowList.compactMap { dict -> WindowInfo? in
+        var windows = windowList.compactMap { dict -> WindowInfo? in
             parseWindowInfo(from: dict, targetPID: pid)
         }
+        
+        // 通过 AXUIElement 补充窗口标题
+        enrichWindowTitles(&windows)
         
         print("✅ Parsed windows for PID \(pid): \(windows.count)")
         
@@ -249,7 +341,7 @@ final class WindowManager: WindowManagerProtocol {
             ownerPID: ownerPID,
             bundleID: bundleID,
             appName: appName,
-            title: title.isEmpty ? appName : title,  // 如果没有标题，使用应用名
+            title: title,  // 保留原始标题，可能为空
             bounds: bounds,
             layer: layer,
             isOnScreen: isOnScreen,

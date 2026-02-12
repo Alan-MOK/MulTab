@@ -315,11 +315,11 @@ struct WindowItemView: View {
                 }
             }
             
-            // 窗口标题
-            Text(window.displayTitle)
+            // 窗口标题（优先显示窗口标题，如果没有则显示应用名）
+            Text(window.hasUniqueTitle ? window.displayTitle : window.appName)
                 .font(.system(size: 9, weight: isSelected ? .semibold : .regular))
                 .lineLimit(1)
-                .frame(width: 60)  // 【3. 控制应用icon显示区域】标题文字宽度
+                .frame(width: 80)  // 增加宽度以显示更多文字
                 .foregroundColor(isSelected ? .white : .white.opacity(0.6))
         }
         .padding(.vertical, 6)

@@ -25,6 +25,11 @@ struct WindowInfo: Identifiable, Hashable, Sendable {
         title.isEmpty ? "Untitled" : title
     }
     
+    /// 是否有独立的窗口标题（不同于应用名）
+    var hasUniqueTitle: Bool {
+        !title.isEmpty && title != appName
+    }
+    
     /// 尺寸描述
     var sizeDescription: String {
         "\(Int(bounds.width))×\(Int(bounds.height))"
