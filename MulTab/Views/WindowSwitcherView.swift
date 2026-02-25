@@ -90,6 +90,7 @@ struct WindowSwitcherView: View {
             NotchDropdownShape(topConcaveRadius: 12, bottomConvexRadius: 16)
                 .fill(Color.black.opacity(0.9))
                 .shadow(color: .black.opacity(0.5), radius: 30, y: 15)
+                .drawingGroup() // Metal 离屏渲染阴影，减少每帧合成开销
             
             // 内容
             VStack(spacing: 0) {
@@ -116,6 +117,7 @@ struct WindowSwitcherView: View {
         }
         // 【1. 控制整个弹窗的窗口大小】width: 宽度动画从100到900, height: 高度从32到140
         .frame(width: expandWidth, height: isVisible ? viewHeight : 32, alignment: .top)
+        .compositingGroup() // 先将子视图合并为单一图层，再裁剪，减少逐像素开销
         .clipShape(NotchDropdownShape(topConcaveRadius: 12, bottomConvexRadius: 16))
         // 放在固定大小的容器中，顶部对齐避免与屏幕顶部分离
         .frame(maxWidth: maxWidth, maxHeight: .infinity, alignment: .top)
@@ -134,16 +136,10 @@ struct WindowSwitcherView: View {
                 isVisible = true
             }
 
-            // 阶段3：所有项目同时显示
-            for i in 0..<viewModel.windows.count {
-                itemAppearProgress[i] = 1 // 设置为1时，所有项目同时显示；设置为0时，项目逐个显示
-            }
-
+            // 阶段3：所有项目统一动画显示（单次状态更新，避免逐项 sleep 开销）
             try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
-            for i in 0..<viewModel.windows.count {
-                let delay = UInt64(Double(i) * 25_000_000) // 0.025秒间隔
-                try? await Task.sleep(nanoseconds: delay)
-                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                for i in 0..<viewModel.windows.count {
                     itemAppearProgress[i] = 1
                 }
             }
@@ -189,6 +185,7 @@ struct WindowSwitcherView: View {
                 }
             }
             .padding(.horizontal, 32)  // 【3. 控制应用icon显示区域的显示范围】左右边距（12pt凹形圆角 + 12pt间距）
+            .drawingGroup() // 将列表项的 scaleEffect/opacity/offset 合并为 Metal 纹理渲染
         }
     }
     
