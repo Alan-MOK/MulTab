@@ -93,7 +93,7 @@ struct PreferencesView: View {
             HStack {
                 Image(systemName: "info.circle")
                     .foregroundColor(.secondary)
-                Text("Version 2.12.2")
+                Text("Version 2.2.24")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 

@@ -414,7 +414,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = "MulTab\n\nby Alan Mok"
         let hotkeyDisplay = preferencesManager.hotkeyType.displayName
-        alert.informativeText = "A lightweight window switcher for macOS.\n\nVersion 1.0\n\n「\(hotkeyDisplay)」 to switch windows."
+        alert.informativeText = "A lightweight window switcher for macOS.\n\nVersion 2.2.24\n\n「\(hotkeyDisplay)」 to switch windows."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
